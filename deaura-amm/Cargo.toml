@@ -1,0 +1,29 @@
+[package]
+name = "deaura-amm"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Jupiter AMM integration for Deaura token swap vault"
+publish = false
+
+[lib]
+name = "deaura_amm"
+crate-type = ["lib", "cdylib"]
+
+[dependencies]
+# Workspace dependencies
+solana-sdk.workspace = true
+jupiter-amm-interface.workspace = true
+spl-token.workspace = true
+spl-associated-token-account.workspace = true
+anyhow.workspace = true
+rust_decimal.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true
+reqwest.workspace = true
+
+[features]
+default = []

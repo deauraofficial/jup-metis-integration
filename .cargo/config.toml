@@ -1,0 +1,8 @@
+# BPF target configuration (only used when building Solana programs)
+# This won't affect regular builds on macOS/Linux
+[target.bpf-unknown-unknown]
+runner = 'cargo-build-bpf'
+rustflags = [
+    "-C", "link-arg=-z",
+    "-C", "link-arg=notext",
+]
