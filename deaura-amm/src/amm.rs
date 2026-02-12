@@ -11,7 +11,7 @@ use jupiter_amm_interface::{
     Swap, SwapAndAccountMetas, SwapParams,
 };
 use solana_sdk::{
-    instruction::{AccountMeta, Instruction},
+    instruction::{AccountMeta},
     program_pack::Pack,
     pubkey::Pubkey,
 };
@@ -49,14 +49,6 @@ impl DeauraAmm {
 
     fn derive_user_data(payer: &Pubkey) -> Pubkey {
         Pubkey::find_program_address(&[b"user_state", payer.as_ref()], &DEAURA_PROGRAM_ID).0
-    }
-
-    /// Instruction data = discriminator (8) + amount (u64 LE)
-    fn ix_data(discriminator: [u8; 8], amount: u64) -> Vec<u8> {
-        let mut data = Vec::with_capacity(16);
-        data.extend_from_slice(&discriminator);
-        data.extend_from_slice(&amount.to_le_bytes());
-        data
     }
 
     /// Build account metas in the exact order required by your Anchor instruction.
@@ -157,13 +149,27 @@ impl Amm for DeauraAmm {
     fn update(&mut self, account_map: &AccountMap) -> Result<()> {
         let vnx_vault_acc_data = try_get_account_data(account_map, &self.vnx_vault)?;
         let token_acc = TokenAccount::unpack(vnx_vault_acc_data)?;
+        ensure!(token_acc.mint == VNX_MINT, "Vault does not hold VNX tokens");
         self.vnx_reserve = token_acc.amount.into();
         Ok(())
     }
 
     fn quote(&self, quote_params: &QuoteParams) -> Result<Quote> {
         // This is a placeholder 1:1 quote (same behavior you described).
-        // If you have a dynamic conversion rate or fees, update here.
+        match self.direction {
+            DeauraDirection::Deposit => {
+                ensure!(
+                    quote_params.input_mint == VNX_MINT,
+                    "Deposit vault only handles VNX->GOLDC"
+                );
+            }
+            DeauraDirection::Redeem => {
+                ensure!(
+                    quote_params.input_mint == GOLDC_MINT,
+                    "Redeem vault only handles GOLDC->VNX"
+                );
+            }
+        }
 
         // If redeeming, optionally enforce vault liquidity:
         if quote_params.input_mint == GOLDC_MINT {
@@ -192,8 +198,7 @@ impl Amm for DeauraAmm {
             source_mint,
             source_token_account,
             destination_token_account,
-            token_transfer_authority,
-            in_amount,
+            token_transfer_authority,            
             ..
         } = swap_params;
 
@@ -205,7 +210,7 @@ impl Amm for DeauraAmm {
         // - For Redeem (GOLDC->VNX): source_token_account should be payer_goldc_ata, destination should be payer_vnx_ata
         let direction = Self::direction_from_source_mint(*source_mint)?;
 
-        let (payer_vnx_ata, payer_goldc_ata, vnx_vault, ix_disc) = match direction {
+        let (payer_vnx_ata, payer_goldc_ata, vnx_vault, _ix_disc) = match direction {
             DeauraDirection::Deposit => (
                 *source_token_account,
                 *destination_token_account,
@@ -229,19 +234,12 @@ impl Amm for DeauraAmm {
         // If not, you must ensure swap_params provides the actual user signer.
         let payer = *token_transfer_authority;
 
-        let metas = Self::account_metas(payer, payer_goldc_ata, payer_vnx_ata, vnx_vault);
-
-        // Single CPI call to your program, which internally performs deposit or redeem.
-        let ix = Instruction {
-            program_id: DEAURA_PROGRAM_ID,
-            accounts: metas.clone(),
-            data: Self::ix_data(ix_disc, *in_amount),
-        };
+        let metas = Self::account_metas(payer, payer_goldc_ata, payer_vnx_ata, vnx_vault);        
 
         Ok(SwapAndAccountMetas {
             // Use TokenSwap as a generic swap type for custom AMM implementations
             swap: Swap::TokenSwap,
-            account_metas: ix.accounts,
+            account_metas: metas,
         })
     }
 
@@ -254,5 +252,9 @@ impl Amm for DeauraAmm {
             direction: self.direction,
             vnx_reserve: self.vnx_reserve,
         })
+    }
+
+    fn supports_exact_out(&self) -> bool {
+        true // 1:1 rate makes ExactIn == ExactOut
     }
 }

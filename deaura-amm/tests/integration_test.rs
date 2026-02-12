@@ -236,7 +236,7 @@ mod tests {
         assert!(quote
             .unwrap_err()
             .to_string()
-            .contains("Insufficient VNX liquidity"));
+            .contains("Deposit vault only handles VNX->GOLDC"));
     }
 
     #[test]
