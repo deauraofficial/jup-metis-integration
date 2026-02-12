@@ -8,8 +8,8 @@ resolver = "2"
 version = "0.1.0"
 edition = "2021"
 authors = ["Deaura Team"]
-license = "MIT OR Apache-2.0"
-repository = "https://github.com/deaura/deaura-jup"
+license = "NA"
+https://github.com/deauraofficial/jup-metis-integration
 
 [workspace.dependencies]
 # Solana dependencies

@@ -5,7 +5,7 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Jupiter AMM integration for Deaura token swap vault"
+description = "Integration(Metis) for Deaura token swap vault into Jupiter Metis"
 publish = false
 
 [lib]
